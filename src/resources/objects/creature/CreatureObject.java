@@ -90,8 +90,8 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	private float slopeModAngle = 1;
 	private float slopeModPercent = 1;
 	private float turnRadius = 1;
-	private float walkSpeed = (float) 2.75;
-	private float waterModPercent = 1;
+	private float walkSpeed = (float) 1.549;
+	private float waterModPercent = (float) 0.75;
 	private SWGList<String> abilities;
 	private int abilitiesUpdateCounter = 0;
 
@@ -159,6 +159,9 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	@NotPersistent
 	private ScheduledFuture<?> inspirationTick;
 	
+	@NotPersistent
+	private ScheduledFuture<?> spectatorTask;
+	
 	private boolean staticNPC = false; // temp
 	@NotPersistent
 	private int flourishCount = 0;
@@ -166,6 +169,7 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	public CreatureObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String Template) {
 		super(objectID, planet, Template, position, orientation);
 		messageBuilder = new CreatureMessageBuilder(this);
+		loadTemplateData();
 		skills = new SWGList<String>(messageBuilder, 1, 3);
 		skillMods = new SWGList<SkillMod>(messageBuilder, 4, 3);
 		abilities = new SWGList<String>(messageBuilder, 4, 14);
@@ -178,6 +182,19 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	public CreatureObject() {
 		super();
 		messageBuilder = new CreatureMessageBuilder(this);
+	}
+	
+	private void loadTemplateData() {
+		
+		/*if(getTemplateData().getAttribute("scale") != null)
+			setHeight((float) getTemplateData().getAttribute("scale"));
+		if(getTemplateData().getAttribute("speed") != null) {
+			//System.out.println(getTemplateData().getAttribute("speed"));
+			setRunSpeed((float) getTemplateData().getAttribute("speed"));
+		}
+		if(getTemplateData().getAttribute("turnRate") != null)
+			setTurnRadius((float) getTemplateData().getAttribute("turnRate"));*/
+
 	}
 	
 	public void setCustomName2(String customName) {
@@ -333,14 +350,15 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 			if (this.posture == 0x09) {
 				needsStopPerformance = true;
 			}
+			if(this.posture == posture)
+				return;
 			this.posture = posture;
 		}
 		
-		IoBuffer postureDelta = messageBuilder.buildPostureDelta(posture);
 		Posture postureUpdate = new Posture(getObjectID(), posture);
 		ObjControllerMessage objController = new ObjControllerMessage(0x1B, postureUpdate);
 		
-		notifyObservers(postureDelta, true);
+		notifyObservers(messageBuilder.buildPostureDelta(posture), true);
 		notifyObservers(objController, true);
 		
 		if (needsStopPerformance) {
@@ -358,6 +376,7 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	public void stopPerformance() {
 		String type = "";
 		synchronized(objectMutex) {
+			// TODO: Minimum check to wait for song to finish before stopping... ?
 			setPerformanceId(0,true);
 			setPerformanceCounter(0);
 			setCurrentAnimation("");
@@ -394,7 +413,9 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 					next.setMoodAnimation("");
 				}
 				if (next == this) { continue; }
-				next.sendSystemMessage("@performance:" + type  + "_stop_other",(byte)0);
+				if(performanceType) { next.sendSystemMessage("You stop watching " + getCustomName() + ".",(byte)0); }
+				else { next.sendSystemMessage("You stop listening to " + getCustomName() + ".",(byte)0); }
+				next.getSpectatorTask().cancel(true);
 			}
 			//not sure if this behaviour is correct. might need fixing later.
 			performanceAudience = new SWGList<CreatureObject>();
@@ -1085,10 +1106,7 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 		}
 		//destination.getSession().write(messageBuilder.buildBaseline8());
 		//destination.getSession().write(messageBuilder.buildBaseline9());
-		 
-		UpdatePostureMessage upm = new UpdatePostureMessage(getObjectID(), (byte) 0);
-		destination.getSession().write(upm.serialize());
-		
+		 		
 		if(destination != getClient()) {
 			UpdatePVPStatusMessage upvpm = new UpdatePVPStatusMessage(getObjectID(), getPvPBitmask(), getFaction());
 			if(getSlottedObject("ghost") != null)
@@ -1134,6 +1152,8 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 			*/
 			
 			destination.getSession().write(upvpm.serialize());
+			UpdatePostureMessage upm = new UpdatePostureMessage(getObjectID(), (byte) 0);
+			destination.getSession().write(upm.serialize());
 		}
 	}
 
@@ -1602,5 +1622,16 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 			this.appearanceEquipmentListUpdateCounter = appearanceEquipmentListUpdateCounter;
 		}
 	}
-	
+
+	public ScheduledFuture<?> getSpectatorTask() {
+		synchronized(objectMutex) {
+			return spectatorTask;
+		}
+	}
+
+	public void setSpectatorTask(ScheduledFuture<?> spectatorTask) {
+		synchronized(objectMutex) {
+			this.spectatorTask = spectatorTask;
+		}
+	}
 }

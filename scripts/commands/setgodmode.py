@@ -1,5 +1,6 @@
 import sys
 from engine.resources.scene import Point3D
+from engine.resources.objects import SWGObject
 
 def setup():
     return
@@ -46,7 +47,16 @@ def run(core, actor, target, commandString):
 		actor.sendSystemMessage('You have learned ' + arg1 + '')
 	
 	elif command == 'anim' and arg1:
-		actor.setCurrentAnimation(arg1)
+		actor.doSkillAnimation(arg1)
 		actor.sendSystemMessage('Performed ' + arg1 ,0)
+	
+	elif command == 'changeBio' and arg1:
+		actor.getSlottedObject('ghost').setBiography(arg1)
+	
+	elif command == 'comm':
+		comm = CommPlayerMessage(actor.getObjectId())
+		actor.getClient().getSession().write(comm.serialize())
 		
+	elif command == 'startInstance' and arg1:
+		core.instanceService.queue(arg1, actor)
 	return
