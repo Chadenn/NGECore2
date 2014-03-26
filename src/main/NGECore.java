@@ -52,6 +52,7 @@ import services.AttributeService;
 import services.BuffService;
 import services.CharacterService;
 import services.ConnectionService;
+import services.DevService;
 import services.EntertainmentService;
 import services.EquipmentService;
 import services.GroupService;
@@ -165,6 +166,7 @@ public class NGECore {
 	public AIService aiService;
 	//public MissionService missionService;
 	public InstanceService instanceService;
+	public DevService devService;
 	
 	// Login Server
 	public NetworkDispatch loginDispatch;
@@ -182,6 +184,7 @@ public class NGECore {
 	private ObjectDatabase mailODB;
 	private ObjectDatabase guildODB;
 	private ObjectDatabase objectIdODB;
+	private ObjectDatabase duplicateIdODB;
 	
 	private BusConfiguration eventBusConfig = BusConfiguration.Default(1, new ThreadPoolExecutor(1, 4, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>()));
 
@@ -231,6 +234,7 @@ public class NGECore {
 		mailODB = new ObjectDatabase("mails", true, false, true);
 		guildODB = new ObjectDatabase("guild", true, false, true);
 		objectIdODB = new ObjectDatabase("oids", true, false, false);
+		duplicateIdODB = new ObjectDatabase("doids", true, false, true);
 
 		// Services
 		loginService = new LoginService(this);
@@ -257,6 +261,7 @@ public class NGECore {
 		skillModService = new SkillModService(this);
 		equipmentService = new EquipmentService(this);
 		entertainmentService = new EntertainmentService(this);
+		devService = new DevService(this);
 		
 		if (config.keyExists("JYTHONCONSOLE.PORT")) {
 			int jythonPort = config.getInt("JYTHONCONSOLE.PORT");
@@ -516,6 +521,10 @@ public class NGECore {
 	
 	public ObjectDatabase getObjectIdODB() {
 		return objectIdODB;
+	}
+	
+	public ObjectDatabase getDuplicateIdODB() {
+		return duplicateIdODB;
 	}
 	
 	public int getActiveClients() {

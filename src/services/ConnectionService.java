@@ -195,6 +195,20 @@ public class ConnectionService implements INetworkDispatch {
 		object.setInviteCounter(0);
 		object.setInviteSenderId(0);
 		object.setInviteSenderName("");
+		
+		if(object.getAttachment("inspireDuration") != null)
+			object.setAttachment("inspireDuration", null);
+		
+		if(object.getInspirationTick() != null) {
+			object.getInspirationTick().cancel(true);
+			object.setInspirationTick(null);
+		}
+		
+		if(object.getSpectatorTask() != null) {
+			object.getSpectatorTask().cancel(true);
+			object.setSpectatorTask(null);
+		}
+		
 		core.groupService.handleGroupDisband(object);
 		
 		for (CreatureObject opponent : object.getDuelList()) {
@@ -236,23 +250,23 @@ public class ConnectionService implements INetworkDispatch {
 				
 		long parentId = object.getParentId();
 		
-		if(object.getContainer() == null) {
+		/*if(object.getContainer() == null) {
 			boolean remove = core.simulationService.remove(object, object.getPosition().x, object.getPosition().z);
 			if(remove)
 				System.out.println("Successful quadtree remove");
 		} else {
 			object.getContainer()._remove(object);
 			object.setParentId(parentId);
-		}
+		}*/
 
 		
-		HashSet<Client> oldObservers = new HashSet<Client>(object.getObservers());
+		/*HashSet<Client> oldObservers = new HashSet<Client>(object.getObservers());
 		for(Iterator<Client> it = oldObservers.iterator(); it.hasNext();) {
 			Client observerClient = it.next();
 			if(observerClient.getParent() != null && !(observerClient.getSession() == session)) {
 				observerClient.getParent().makeUnaware(object);
 			}
-		}
+		}*/
 		ghost.toggleFlag(PlayerFlags.LD);
 		
 		object.setAttachment("disconnectTask", null);
