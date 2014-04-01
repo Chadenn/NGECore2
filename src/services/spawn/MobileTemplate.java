@@ -23,6 +23,7 @@ package services.spawn;
 
 import java.util.Vector;
 
+import main.NGECore;
 import resources.datatables.Options;
 import resources.datatables.PvpStatus;
 import resources.objects.weapon.WeaponObject;
@@ -35,10 +36,15 @@ public class MobileTemplate {
 	private short level;
 	private Vector<String> attacks;
 	private String defaultAttack;
-	private int minDamage;
-	private int maxDamage;
+	private int minDamage = 0;
+	private int maxDamage = 0;
 	private int difficulty = 0;
 	private int health, action;
+	private String creatureName;
+	private float scale = 1;
+	// this is a custom attack Range setting to use for large mobs like krayts
+	private int attackRange;
+	private Vector<String> weaponTemplates = new Vector<String>();
 
 	public Vector<String> getTemplates() {
 		return templates;
@@ -128,4 +134,35 @@ public class MobileTemplate {
 		this.defaultAttack = defaultAttack;
 	}
 
+	public String getCreatureName() {
+		return creatureName;
+	}
+
+	public void setCreatureName(String creatureName) {
+		this.creatureName = creatureName;
+	}
+
+	public float getScale() {
+		return scale;
+	}
+
+	public void setScale(float scale) {
+		this.scale = scale;
+	}
+
+	public int getAttackRange() {
+		return attackRange;
+	}
+
+	public void setAttackRange(int attackRange) {
+		this.attackRange = attackRange;
+	}
+	
+	public Vector<String> getWeaponTemplates() {
+		return weaponTemplates;
+	}
+
+	public void setWeaponTemplates(Vector<String> weaponTemplates) {
+		this.weaponTemplates = weaponTemplates;
+	}
 }

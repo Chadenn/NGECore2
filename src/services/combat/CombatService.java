@@ -21,6 +21,7 @@
  ******************************************************************************/
 package services.combat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -41,6 +42,7 @@ import protocol.swg.objectControllerObjects.CombatSpam;
 import protocol.swg.objectControllerObjects.CommandEnqueueRemove;
 import protocol.swg.objectControllerObjects.StartTask;
 import resources.common.FileUtilities;
+import resources.datatables.Posture;
 import resources.objects.Buff;
 import resources.objects.DamageOverTime;
 import resources.objects.creature.CreatureObject;
@@ -86,6 +88,8 @@ public class CombatService implements INetworkDispatch {
 	
 	public void doCombat(final CreatureObject attacker, final TangibleObject target, final WeaponObject weapon, final CombatCommand command, final int actionCounter) {
 
+		if(target instanceof CreatureObject) if(((CreatureObject) target).getPosture() == Posture.Incapacitated || ((CreatureObject) target).getPosture() == Posture.Dead) return;
+		
 		boolean success = true;
 		
 		if((command.getAttackType() == 0 || command.getAttackType() == 1 || command.getAttackType() == 3) && !attemptCombat(attacker, target))
@@ -178,8 +182,26 @@ public class CombatService implements INetworkDispatch {
 		
 		}
 		
-		//core.buffService.addBuffToCreature(attacker, command.getBuffNameSelf());
-		
+		if(target instanceof CreatureObject)
+		{
+			CreatureObject creature = (CreatureObject)target;
+			if(creature.getPosture() == Posture.Incapacitated || creature.getPosture() == Posture.Dead)
+			{
+				for (TangibleObject defender : new ArrayList<TangibleObject>(creature.getDefendersList()))
+				{
+					defender.removeDefender(creature);
+					creature.removeDefender(defender);
+				}	
+			}
+		}
+		else if(target instanceof TangibleObject)
+		{
+			if(target.getConditionDamage() == target.getMaxDamage()) 
+			{
+				for(TangibleObject defender : target.getDefendersList()) defender.removeDefender(target);
+				core.objectService.destroyObject(target);
+			}
+		}
 	}
 
 	private void doAreaCombat(CreatureObject attacker, TangibleObject target, WeaponObject weapon, CombatCommand command, int actionCounter) {
@@ -250,7 +272,7 @@ public class CombatService implements INetworkDispatch {
 		sendCombatPackets(attacker, target, weapon, command, actionCounter, damage, 0, HitType.HIT);
 	
 		if(FileUtilities.doesFileExist("scripts/commands/combat/" + command.getCommandName() + ".py"))
-			core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "run", core, attacker, target, null);
+			core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "run", core, attacker, target, damage);
 
 	}
 	
@@ -365,7 +387,7 @@ public class CombatService implements INetworkDispatch {
 			}
 	
 			if(FileUtilities.doesFileExist("scripts/commands/combat/" + command.getCommandName() + ".py"))
-				core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "run", core, attacker, target, null);
+				core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "run", core, attacker, target, damage);
 
 			return;
 			
@@ -463,7 +485,7 @@ public class CombatService implements INetworkDispatch {
 		}
 		
 		if(target.getSkillMod("expertise_innate_reduction_all_player") != null)
-			baseArmor *= (100 - target.getSkillMod("expertise_innate_reduction_all_player").getBase()) / 100;
+			baseArmor *= (100 - target.getSkillModBase("expertise_innate_reduction_all_player")) / 100;
 			
 		if(command.getBypassArmor() > 0)
 			baseArmor *= (100 - command.getBypassArmor()) / 100;
@@ -472,7 +494,7 @@ public class CombatService implements INetworkDispatch {
 
 		if(hitType == HitType.STRIKETHROUGH) {
 			
-			float stMaxValue = attacker.getSkillMod("combat_strikethrough_value").getBase() / 2 + attacker.getLuck() / 10;
+			float stMaxValue = attacker.getSkillModBase("combat_strikethrough_value") / 2 + attacker.getLuck() / 10;
 			if(stMaxValue > 99)
 				stMaxValue = 99;
 			float stMinValue = stMaxValue / 2;
@@ -553,7 +575,7 @@ public class CombatService implements INetworkDispatch {
 		
 		float rawDamage = command.getAddedDamage();
 		
-		if(command.getPercentFromWeapon() > 0 && weapon != attacker.getSlottedObject("default_weapon")) {
+		if(command.getPercentFromWeapon() > 0) {
 			
 			float weaponMinDmg = weapon.getMinDamage();
 			float weaponMaxDmg = weapon.getMaxDamage();
@@ -569,23 +591,6 @@ public class CombatService implements INetworkDispatch {
 					
 				}
 			}
-			
-			float weaponDmg = new Random().nextInt((int) (weaponMaxDmg - weaponMinDmg + 1)) + weaponMinDmg;
-			weaponDmg *= command.getPercentFromWeapon();
-			rawDamage += weaponDmg;
-			
-			if(weapon.isMelee()) {
-				
-				if(attacker.getStrength() > 0) {
-					rawDamage += ((attacker.getStrength() / 100) * 33);
-				}
-				
-			}
-			
-		} else if(command.getPercentFromWeapon() > 0) {
-			
-			float weaponMinDmg = 50;
-			float weaponMaxDmg = 100;
 			
 			float weaponDmg = new Random().nextInt((int) (weaponMaxDmg - weaponMinDmg + 1)) + weaponMinDmg;
 			weaponDmg *= command.getPercentFromWeapon();
@@ -636,23 +641,6 @@ public class CombatService implements INetworkDispatch {
 					
 				}
 			}
-			
-			float weaponDmg = new Random().nextInt((int) (weaponMaxDmg - weaponMinDmg + 1)) + weaponMinDmg;
-			weaponDmg *= command.getPercentFromWeapon();
-			rawDamage += weaponDmg;
-			
-			if(weapon.isMelee()) {
-				
-				if(attacker.getStrength() > 0) {
-					rawDamage += ((attacker.getStrength() / 100) * 33);
-				}
-				
-			}
-			
-		} else if(command.getPercentFromWeapon() > 0) {
-			
-			float weaponMinDmg = 50;
-			float weaponMaxDmg = 100;
 			
 			float weaponDmg = new Random().nextInt((int) (weaponMaxDmg - weaponMinDmg + 1)) + weaponMinDmg;
 			weaponDmg *= command.getPercentFromWeapon();
@@ -795,27 +783,22 @@ public class CombatService implements INetworkDispatch {
 				target.setTurnRadius(0);
 				target.setSpeedMultiplierBase(0);
 			}
-			ScheduledFuture<?> incapTask = scheduler.schedule(new Runnable() {
-
-				@Override
-				public void run() {
-					
-					synchronized(target.getMutex()) {
-
-						if(target.getPosture() != 13)
-							return;
-						
-						target.setPosture((byte) 0);
-						target.setTurnRadius(1);
-						target.setSpeedMultiplierBase(1);
-					
-					}
-
-				}
+			ScheduledFuture<?> incapTask = scheduler.schedule(() -> {
 				
+				synchronized(target.getMutex()) {
+
+					if(target.getPosture() != 13)
+						return;
+					
+					target.setPosture((byte) 0);
+					target.setTurnRadius(1);
+					target.setSpeedMultiplierBase(1);
+				
+				}
+			
 			}, target.getIncapTimer(), TimeUnit.SECONDS);
 			target.setIncapTask(incapTask);
-			core.buffService.addBuffToCreature(target, "incapWeaken");
+			core.buffService.addBuffToCreature(target, "incapWeaken", target);
 			if(target.getSlottedObject("ghost") != null)
 				attacker.sendSystemMessage("You incapacitate " + target.getCustomName() + ".", (byte) 0);
 			return;
@@ -824,6 +807,8 @@ public class CombatService implements INetworkDispatch {
 				target.setHealth(0);
 				target.setPosture((byte) 14);
 			}
+			attacker.removeDefender(target);
+			target.removeDefender(attacker);
 			return;
 		}
 		synchronized(target.getMutex()) {
@@ -834,6 +819,14 @@ public class CombatService implements INetworkDispatch {
 		event.damage = damage;
 		target.getEventBus().publish(event);
 	}
+	
+	@SuppressWarnings("unused")
+	public void doDrainHeal(CreatureObject receiver, int drainAmount) {
+		synchronized(receiver.getMutex()) {
+			receiver.setHealth(receiver.getHealth() + drainAmount);
+		}
+		
+	}	
 	
 	private boolean isInConeAngle(CreatureObject attacker, SWGObject target, int coneLength, int coneWidth, float directionX, float directionZ) {
 		
@@ -853,7 +846,7 @@ public class CombatService implements INetworkDispatch {
 		
 		return true;
 				
-	}
+	}	
 	
 	public boolean attemptHeal(CreatureObject healer, CreatureObject target) {
 		
@@ -869,6 +862,8 @@ public class CombatService implements INetworkDispatch {
 		if (areInDuel(healer, target)) {
 			return false;
 		}
+		
+		if(target.getAttachment("AI") != null) return false;
 		
 		if(healer.getFaction().equals(target.getFaction())) {
 			
@@ -992,9 +987,12 @@ public class CombatService implements INetworkDispatch {
 		target.sendSystemMessage("@base_player:victim_dead", (byte) 0);
 		attacker.removeDefender(target);
 		target.removeDefender(attacker);
+		target.setSpeedMultiplierBase(0);
+		target.setTurnRadius(0);
+		
+		if(target.getDuelList().contains(attacker)) handleEndDuel(target, attacker, false);
 		
 		core.playerService.sendCloningWindow(target, attacker.getSlottedObject("ghost") != null);
-		
 	}
 	
 	public boolean areInDuel(CreatureObject creature1, CreatureObject creature2) {
@@ -1003,7 +1001,6 @@ public class CombatService implements INetworkDispatch {
 			return true;
 		
 		return false;
-		
 	}
 	
 	public void handleDuel(CreatureObject requester, CreatureObject target) {
@@ -1020,15 +1017,15 @@ public class CombatService implements INetworkDispatch {
 			requester.getDuelList().add(target);
 			requester.sendSystemMessage("You accept " + target.getCustomName() + "'s challenge.", (byte) 0);
 			target.sendSystemMessage(requester.getCustomName() + " accepts your challenge.", (byte) 0);
-			target.getClient().getSession().write(new UpdatePVPStatusMessage(requester.getObjectID(), 55, requester.getFaction()).serialize());
-			requester.getClient().getSession().write(new UpdatePVPStatusMessage(target.getObjectID(), 55, target.getFaction()).serialize());
+			target.updatePvpStatus();
+			requester.updatePvpStatus();
 			
 		}
 		
 		
 	}
 	
-	public void handleEndDuel(CreatureObject requester, CreatureObject target) {
+	public void handleEndDuel(CreatureObject requester, CreatureObject target, boolean announce) {
 		
 		requester.getDuelList().remove(target);
 		target.getDuelList().remove(requester);
@@ -1036,11 +1033,14 @@ public class CombatService implements INetworkDispatch {
 		target.removeDefender(requester);
 		requester.removeDefender(target);
 		
-		target.getClient().getSession().write(new UpdatePVPStatusMessage(requester.getObjectID(), 0x16, requester.getFaction()).serialize());
-		requester.getClient().getSession().write(new UpdatePVPStatusMessage(target.getObjectID(), 0x16, target.getFaction()).serialize());
+		target.updatePvpStatus();
+		requester.updatePvpStatus();
 		
-		requester.sendSystemMessage("You end your duel with " + target.getCustomName() + ".", (byte) 0);
-		target.sendSystemMessage(requester.getCustomName() + " ends your duel.", (byte) 0);
+		if(announce)
+		{
+			requester.sendSystemMessage("You end your duel with " + target.getCustomName() + ".", (byte) 0);
+			target.sendSystemMessage(requester.getCustomName() + " ends your duel.", (byte) 0);
+		}
 
 	}
 
@@ -1052,7 +1052,7 @@ public class CombatService implements INetworkDispatch {
 			success = false;
 		
 		if((command.getAttackType() == 0 || command.getAttackType() == 1 || command.getAttackType() == 3) && !attemptHeal(medic, target))	
-			target = medic;
+			success = false;
 
 		if(!success) {
 			IoSession session = medic.getClient().getSession();
@@ -1068,8 +1068,7 @@ public class CombatService implements INetworkDispatch {
 		else if(command.getAttackType() == 0 || command.getAttackType() == 2 || command.getAttackType() == 3)
 			doAreaRevive(medic, target, weapon, command, actionCounter);
 		
-		sendHealPackets(medic, target, weapon, command, actionCounter);
-		
+		//sendHealPackets(medic, target, weapon, command, actionCounter); // Is there a reason this is here (combat log...?) - it causes a player to come back from the dead die again.
 	}
 	
 	private void doSingleTargetRevive(CreatureObject medic, CreatureObject target, WeaponObject weapon, CombatCommand command, int actionCounter) {

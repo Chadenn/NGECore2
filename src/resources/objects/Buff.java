@@ -40,12 +40,12 @@ import engine.clientdata.ClientFileManager;
 import engine.clientdata.visitors.DatatableVisitor;
 import engine.resources.common.CRC;
 
-@Persistent(version=8)
+@Persistent(version=10)
 public class Buff implements IDelta {
 	
 	@NotPersistent
 	private SimpleBufferAllocator bufferPool = new SimpleBufferAllocator();
-	private String group1;
+	private String group1, group2;
 	private int priority;
 	private float duration;
 	private String buffName;
@@ -69,12 +69,14 @@ public class Buff implements IDelta {
 	private ScheduledFuture<?> removalTask;
 	private int stacks = 1;
 	private long groupBufferId;
+	private int buffCRC;
 	
 	public Buff(String buffName, long ownerId) {
 		
 		this.buffName = buffName;
 		this.ownerId = ownerId;
-		
+		this.buffCRC = CRC.StringtoCRC(buffName);
+
 		DatatableVisitor visitor;
 		
 		try {
@@ -86,6 +88,7 @@ public class Buff implements IDelta {
 				if(((String) visitor.getObject(i, 0)).equalsIgnoreCase(buffName)) {
 					
 					group1 = (String) visitor.getObject(i, 1);
+					group2 = (String) visitor.getObject(i, 2);
 					priority = (int) visitor.getObject(i, 4);
 					duration = (Float) visitor.getObject(i, 6);
 					effect1Name = (String) visitor.getObject(i, 7);
@@ -429,7 +432,7 @@ public class Buff implements IDelta {
 	}
 	
 	public boolean isGroupBuff() {
-		return effect1Name.equals("group");
+		return effect1Name == null ? false : effect1Name.equals("group");
 	}
 
 	public long getGroupBufferId() {
@@ -438,6 +441,18 @@ public class Buff implements IDelta {
 
 	public void setGroupBufferId(long groupBufferId) {
 		this.groupBufferId = groupBufferId;
+	}
+
+	public String getGroup2() {
+		return group2;
+	}
+
+	public void setGroup2(String group2) {
+		this.group2 = group2;
+	}
+
+	public int getBuffCRC() {
+		return buffCRC;
 	}
 
 }

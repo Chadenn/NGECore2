@@ -88,6 +88,11 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		CreatureObject creature = (CreatureObject) object;
 		IoBuffer buffer = bufferPool.allocate(100, false).order(ByteOrder.LITTLE_ENDIAN);
 		buffer.setAutoExpand(true);
+		
+		if(creature.getStfName() == null || creature.getStfFilename() == null) {
+			creature.setStfName("");
+			creature.setStfFilename("");
+		}
 
 		buffer.putShort((short) 19);	// Object Count
 		buffer.putFloat(1);
@@ -163,7 +168,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 				buffer.put((byte) 0);
 				buffer.put(getAsciiString(skillMod.getName()));
 				buffer.putInt(skillMod.getBase());
-				buffer.putInt(skillMod.getModifier());
+				buffer.putInt((int) skillMod.getModifier());
 			}
 		}
 		buffer.putFloat(creature.getSpeedMultiplierBase());
@@ -337,7 +342,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		
 		buffer.putShort((short) 0); // costume
 		//buffer.put(getAsciiString("appearance/gungan_m.sat"));
-		buffer.put((byte) 1); // visible boolean. default: true. cloaked if false.
+		buffer.put((byte) (creature.isInStealth() ? 0 : 1));
 
 		if(creature.getBuffList().isEmpty()) {
 			buffer.putInt(0);	
@@ -357,11 +362,14 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 			PlayerObject player = (PlayerObject) creature.getSlottedObject("ghost");
 			
 			for(Buff buff : creature.getBuffList().get()) {
-					
-				buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+				
+				if(player != null)
+					buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+				else 
+					buff.setTotalPlayTime(0);
 				buffer.put((byte) 1);
 				buffer.putInt(0);
-				buffer.putInt(CRC.StringtoCRC(buff.getBuffName()));
+				buffer.putInt(CRC.StringtoCRC(buff.getBuffName().toLowerCase()));
 				if(buff.getDuration() > 0) {
 					buffer.putInt((int) (buff.getTotalPlayTime() + buff.getRemainingDuration()));		
 					buffer.putInt(0);
@@ -380,7 +388,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 				
 		}
 		
-		buffer.put((byte) 0); // performing? boolean
+		buffer.put((byte) (creature.isStationary() ? 1 : 0)); // if the server accepts transforms from the object
 		buffer.put(creature.getDifficulty());
 		
 		if(creature.isHologram())
@@ -388,7 +396,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		else
 			buffer.putInt(0xFFFFFFFF);
 
-		buffer.put((byte) 1); // visibleOnRadar? boolean
+		buffer.put((byte) (creature.isRadarVisible() ? 1 : 0));
 		buffer.put((byte) 0); // no effect for 1?
 		buffer.put((byte) 0); // no effect for 1?
 		
@@ -772,7 +780,10 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		IoBuffer buffer = bufferPool.allocate(37, false).order(ByteOrder.LITTLE_ENDIAN);
 		buffer.putInt(1);
 		buffer.putInt(creature.getBuffListCounter());
-		buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+		if(player != null)
+			buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+		else
+			buff.setTotalPlayTime(0);
 		buffer.put((byte) 0);
 		buffer.put(buff.getBytes());
 		int size = buffer.position();
@@ -808,7 +819,10 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		IoBuffer buffer = bufferPool.allocate(37, false).order(ByteOrder.LITTLE_ENDIAN);
 		buffer.putInt(1);
 		buffer.putInt(creature.getBuffListCounter());
-		buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+		if(player != null)
+			buff.setTotalPlayTime((int) (player.getTotalPlayTime() + (System.currentTimeMillis() - player.getLastPlayTimeUpdate()) / 1000));
+		else
+			buff.setTotalPlayTime(0);
 		buffer.put((byte) 2);
 		buffer.put(buff.getBytes());
 		int size = buffer.position();
@@ -836,7 +850,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 
 	}
 	
-	/*public IoBuffer buildAddSkillModDelta(String name, int base) {
+	public IoBuffer buildAddSkillModDelta(String name, int base) {
 		
 		CreatureObject creature = (CreatureObject) object;
 		
@@ -854,9 +868,9 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		
 		return buffer;
 
-	}*/
+	}
 	
-	/*public IoBuffer buildRemoveSkillModDelta(String name, int base) {
+	public IoBuffer buildRemoveSkillModDelta(String name, int base) {
 		
 		CreatureObject creature = (CreatureObject) object;
 		
@@ -874,7 +888,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		
 		return buffer;
 
-	}*/
+	}
 	
 	public IoBuffer buildAddSkillDelta(String name) {
 		
@@ -1173,7 +1187,34 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		buffer = createDelta("CREO", (byte) 4, (short) 1, (short) 0x0F, buffer, size + 4);
 		return buffer;	
 	}
-
+	
+	// TODO: This seems to be somehow related to chairs as well.
+	public IoBuffer buildOwnerIdDelta(long ownerId) {
+		IoBuffer buffer = bufferPool.allocate(8, false).order(ByteOrder.LITTLE_ENDIAN);
+		buffer.putLong(ownerId);
+		int size = buffer.position();
+		buffer.flip();
+		buffer = createDelta("CREO", (byte) 3, (short) 1, (short) 0x0D, buffer, size + 4);
+		return buffer;
+	}
+	
+	public IoBuffer buildStealthFlagDelta(boolean flag) {
+		IoBuffer buffer = bufferPool.allocate(8, false).order(ByteOrder.LITTLE_ENDIAN);
+		buffer.put((byte) (flag ? 0 : 1));
+		int size = buffer.position();
+		buffer.flip();
+		buffer = createDelta("CREO", (byte) 6, (short) 1, (short) 0x19, buffer, size + 4);
+		return buffer;
+	}
+	
+	public IoBuffer buildRadarVisibleFlagDelta(boolean flag) {
+		IoBuffer buffer = bufferPool.allocate(1, false).order(ByteOrder.LITTLE_ENDIAN);
+		buffer.put((byte) (flag ? 1 : 0));
+		int size = buffer.position();
+		buffer.flip();
+		buffer = createDelta("CREO", (byte) 6, (short) 1, (short) 0x1E, buffer, size + 4);
+		return buffer;
+	}
 
 	public void sendListDelta(byte viewType, short updateType, IoBuffer buffer) {
 		switch (viewType) {

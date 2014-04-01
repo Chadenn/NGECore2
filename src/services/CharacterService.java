@@ -26,12 +26,14 @@ import java.nio.ByteOrder;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.Map;
 
 import main.NGECore;
 
 import org.apache.mina.core.buffer.IoBuffer;
 import org.apache.mina.core.session.IoSession;
+
 
 
 import engine.clientdata.ClientFileManager;
@@ -286,6 +288,8 @@ public class CharacterService implements INetworkDispatch {
 					object.addObjectToEquipList(hair);
 				}
 				
+				player.setBornDate((int) System.currentTimeMillis());
+
 				TangibleObject inventory = (TangibleObject) core.objectService.createObject("object/tangible/inventory/shared_character_inventory.iff", object.getPlanet());
 				inventory.setContainerPermissions(CreatureContainerPermissions.CREATURE_CONTAINER_PERMISSIONS);
 				TangibleObject appInventory = (TangibleObject) core.objectService.createObject("object/tangible/inventory/shared_appearance_inventory.iff", object.getPlanet());
@@ -530,6 +534,29 @@ public class CharacterService implements INetworkDispatch {
 		}
 		return false;
 	}
+	
+	/**
+	 * Checks the database for if the object ID of the player exists.
+	 * @param objectId Object ID to check for in the database
+	 * @return Returns True if the player exists
+	 */
+	public boolean playerExists(long objectId) {
+
+		try {
+			PreparedStatement ps = databaseConnection.preparedStatement("SELECT id FROM characters WHERE id=?");
+			ps.setLong(1, objectId);
+			ResultSet resultSet = ps.executeQuery();
+			
+			boolean isDuplicate = resultSet.next();
+			resultSet.getStatement().close();
+			if (isDuplicate) { return true; }
+			else { return false; }
+		} 
+		
+		catch (SQLException e) { e.printStackTrace(); }
+		return false;
+	}
+
 	
 	private void createStarterClothing(CreatureObject creature, String raceTemplate, String profession) {
 		try {

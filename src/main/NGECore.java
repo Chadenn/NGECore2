@@ -52,6 +52,7 @@ import services.AttributeService;
 import services.BuffService;
 import services.CharacterService;
 import services.ConnectionService;
+import services.ConversationService;
 import services.DevService;
 import services.EntertainmentService;
 import services.EquipmentService;
@@ -167,6 +168,7 @@ public class NGECore {
 	//public MissionService missionService;
 	public InstanceService instanceService;
 	public DevService devService;
+	public ConversationService conversationService;
 	
 	// Login Server
 	public NetworkDispatch loginDispatch;
@@ -185,10 +187,12 @@ public class NGECore {
 	private ObjectDatabase guildODB;
 	private ObjectDatabase objectIdODB;
 	private ObjectDatabase duplicateIdODB;
+	private ObjectDatabase chatRoomODB;
 	
 	private BusConfiguration eventBusConfig = BusConfiguration.Default(1, new ThreadPoolExecutor(1, 4, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>()));
 
 	private ObjectDatabase buildingODB;
+
 
 	
 	public NGECore() {
@@ -235,7 +239,8 @@ public class NGECore {
 		guildODB = new ObjectDatabase("guild", true, false, true);
 		objectIdODB = new ObjectDatabase("oids", true, false, false);
 		duplicateIdODB = new ObjectDatabase("doids", true, false, true);
-
+		chatRoomODB = new ObjectDatabase("chatRooms", true, false, true);
+		
 		// Services
 		loginService = new LoginService(this);
 		retroService = new RetroService(this);
@@ -262,6 +267,7 @@ public class NGECore {
 		equipmentService = new EquipmentService(this);
 		entertainmentService = new EntertainmentService(this);
 		devService = new DevService(this);
+		conversationService = new ConversationService(this);
 		
 		if (config.keyExists("JYTHONCONSOLE.PORT")) {
 			int jythonPort = config.getInt("JYTHONCONSOLE.PORT");
@@ -377,8 +383,9 @@ public class NGECore {
 		
 		objectService.loadBuildings();
 		terrainService.loadSnapShotObjects();
+		objectService.loadServerTemplates();
 		simulationService.insertSnapShotObjects();
-		
+		simulationService.insertPersistentBuildings();
 		// Zone services that need to be loaded after the above
 		zoneDispatch.addService(simulationService);
 		
@@ -408,17 +415,42 @@ public class NGECore {
 		weatherService = new WeatherService(this);
 		weatherService.loadPlanetSettings();
 		
-		/*spawnService.loadMobileTemplates();
+		spawnService.loadMobileTemplates();
 		spawnService.loadLairTemplates();
 		spawnService.loadLairGroups();
-		spawnService.loadSpawnAreas();*/
+		spawnService.loadSpawnAreas();
+		
+		equipmentService.loadBonusSets();
 		
 		retroService.run();
 		
 		didServerCrash = false;
 		System.out.println("Started Server.");
+		cleanupCreatureODB();
 		setGalaxyStatus(2);
 		
+	}
+
+	private void cleanupCreatureODB() {
+		EntityCursor<CreatureObject> cursor = creatureODB.getCursor(Long.class, CreatureObject.class);
+		
+		Iterator<CreatureObject> it = cursor.iterator();
+		List<CreatureObject> deletedObjects = new ArrayList<CreatureObject>();
+		
+		while(it.hasNext()) {
+			CreatureObject creature = it.next();
+			if(!characterService.playerExists(creature.getObjectID()))
+				deletedObjects.add(creature);
+		}
+		
+		cursor.close();
+		
+		Transaction txn = creatureODB.getEnvironment().beginTransaction(null, null);
+		for(CreatureObject creature : deletedObjects) {
+			creatureODB.delete(creature.getObjectID(), Long.class, CreatureObject.class, txn);
+		}
+		txn.commitSync();
+		System.out.println("Deleted " + deletedObjects.size() + " creatures.");
 	}
 
 	public void stop() {
@@ -525,6 +557,10 @@ public class NGECore {
 	
 	public ObjectDatabase getDuplicateIdODB() {
 		return duplicateIdODB;
+	}
+	
+	public ObjectDatabase getChatRoomODB() {
+		return chatRoomODB;
 	}
 	
 	public int getActiveClients() {

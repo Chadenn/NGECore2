@@ -103,16 +103,21 @@ public class SpawnService {
 		
 		creature.setOptionsBitmask(mobileTemplate.getOptionBitmask());
 		creature.setPvPBitmask(mobileTemplate.getPvpBitmask());
+		creature.setStfFilename("mob/creature_names"); // TODO: set other STFs for NPCs other than creatures
+		creature.setStfName(mobileTemplate.getCreatureName());
+		creature.setHeight(mobileTemplate.getScale());
 		int difficulty = mobileTemplate.getDifficulty();
 		creature.setDifficulty((byte) difficulty);
 		if(level != -1)
 			creature.setLevel(level);
 		else
 			creature.setLevel(mobileTemplate.getLevel());		
-		WeaponObject defaultWeapon = (WeaponObject) core.objectService.createObject("object/weapon/creature/shared_creature_default_weapon.iff", creature.getPlanet());
-		defaultWeapon.setAttackSpeed(2);
+		WeaponObject defaultWeapon = (mobileTemplate.getWeaponTemplates().size() > 0) ?  (WeaponObject) core.objectService.createObject(mobileTemplate.getWeaponTemplates().get(new Random().nextInt(mobileTemplate.getWeaponTemplates().size())), creature.getPlanet()) : (WeaponObject) core.objectService.createObject("object/weapon/creature/shared_creature_default_weapon.iff", creature.getPlanet());
+		//defaultWeapon.setAttackSpeed(2);
 		defaultWeapon.setDamageType("@obj_attr_n:armor_eff_kinetic");
 		defaultWeapon.setStringAttribute("cat_wpn_damage.damage", "0-0");
+		if(mobileTemplate.getAttackRange() > 0)
+			defaultWeapon.setMaxRange(mobileTemplate.getAttackRange());
 		if(mobileTemplate.getMaxDamage() != 0) {
 			defaultWeapon.setMaxDamage(mobileTemplate.getMaxDamage());
 			defaultWeapon.setMinDamage(mobileTemplate.getMinDamage());
@@ -122,6 +127,7 @@ public class SpawnService {
 		}
 		creature.addObjectToEquipList(defaultWeapon);
 		creature.add(defaultWeapon);
+		creature.setWeaponId(defaultWeapon.getObjectID());
 		creature.addObjectToEquipList(inventory);
 		creature.add(inventory);
 
@@ -169,6 +175,10 @@ public class SpawnService {
 			cell.add(creature);
 		}
 		return creature;
+	}
+	
+	public CreatureObject spawnCreature(String mobileTemplate, String planetName, long cellId, float x, float y, float z, float qW, float qX, float qY, float qZ, int level) {
+		return spawnCreature(mobileTemplate, planetName, cellId, x, y, z, 1, 0, 0, 0, (short) level);
 	}
 	
 	public CreatureObject spawnCreature(String mobileTemplate, String planetName, long cellId, float x, float y, float z) {
