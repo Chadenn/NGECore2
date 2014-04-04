@@ -71,7 +71,7 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		} else {
 			buffer.putInt(creature.getSkills().size());	
 			buffer.putInt(creature.getSkillsUpdateCounter());
-			for(String skill : creature.getSkills().get())
+			for(String skill : creature.getSkills())
 				buffer.put(getAsciiString(skill));
 		}
 		int size = buffer.position();
@@ -157,20 +157,14 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		buffer.putInt(0);	// HAM Encumberance List unused in NGE
 		buffer.putInt(0);
 		
-		if(creature.getSkillMods().isEmpty()) {
-			buffer.putInt(0);
-			buffer.putInt(0);
-		} else {
-			buffer.putInt(creature.getSkillMods().size());
-			buffer.putInt(creature.getSkillMods().getUpdateCounter());
-			
-			for(SkillMod skillMod : creature.getSkillMods()) {
-				buffer.put((byte) 0);
-				buffer.put(getAsciiString(skillMod.getName()));
-				buffer.putInt(skillMod.getBase());
-				buffer.putInt((int) skillMod.getModifier());
-			}
+		buffer.putInt(creature.getSkillMods().size());
+		buffer.putInt(creature.getSkillMods().getUpdateCounter());
+		for (SkillMod skillMod : creature.getSkillMods().values()) {
+			buffer.put((byte) 0);
+			buffer.put(getAsciiString(skillMod.getName()));
+			buffer.put(skillMod.getBytes());
 		}
+		
 		buffer.putFloat(creature.getSpeedMultiplierBase());
 		buffer.putFloat(creature.getSpeedMultiplierMod());
 		
@@ -850,46 +844,6 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 
 	}
 	
-	public IoBuffer buildAddSkillModDelta(String name, int base) {
-		
-		CreatureObject creature = (CreatureObject) object;
-		
-		IoBuffer buffer = bufferPool.allocate(19 + name.length(), false).order(ByteOrder.LITTLE_ENDIAN);
-		buffer.putInt(1);
-		buffer.putInt(creature.getSkillModsUpdateCounter());
-		buffer.put((byte) 0);
-		buffer.put(getAsciiString(name));
-		buffer.putInt(base);
-		buffer.putInt(0);
-		
-		int size = buffer.position();
-		buffer.flip();
-		buffer = createDelta("CREO", (byte) 4, (short) 1, (short) 3, buffer, size + 4);
-		
-		return buffer;
-
-	}
-	
-	public IoBuffer buildRemoveSkillModDelta(String name, int base) {
-		
-		CreatureObject creature = (CreatureObject) object;
-		
-		IoBuffer buffer = bufferPool.allocate(19 + name.length(), false).order(ByteOrder.LITTLE_ENDIAN);
-		buffer.putInt(1);
-		buffer.putInt(creature.getSkillModsUpdateCounter());
-		buffer.put((byte) 1);
-		buffer.put(getAsciiString(name));
-		buffer.putInt(base);
-		buffer.putInt(0);
-		
-		int size = buffer.position();
-		buffer.flip();
-		buffer = createDelta("CREO", (byte) 4, (short) 1, (short) 3, buffer, size + 4);
-		
-		return buffer;
-
-	}
-	
 	public IoBuffer buildAddSkillDelta(String name) {
 		
 		CreatureObject creature = (CreatureObject) object;
@@ -1218,26 +1172,25 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 
 	public void sendListDelta(byte viewType, short updateType, IoBuffer buffer) {
 		switch (viewType) {
-			case 1:
-			case 3:
 			case 4: {
-				switch(updateType) {
+				switch (updateType) {
 					case 3: {
 						buffer = createDelta("CREO", (byte) 4, (short) 1, (byte) 3, buffer.flip(), buffer.array().length + 4);
 						
 						if (object.getClient() != null && object.getClient().getSession() != null) {
-							//object.getClient().getSession().write(buffer);
+							object.getClient().getSession().write(buffer);
 						}
+						
 						break;
 					}
-					
 				}
 			}
+			case 1:
+			case 3:
 			case 6:
 			case 8:
 			case 9:
-			default:
-			{
+			default: {
 				return;
 			}
 		}
