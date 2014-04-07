@@ -21,6 +21,8 @@
  ******************************************************************************/
 package resources.objects.creature;
 
+import java.lang.System;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -182,7 +184,7 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 	@NotPersistent
 	private TangibleObject conversingNpc;
 	@NotPersistent
-	private ConcurrentHashMap<String, Cooldown> cooldowns = new ConcurrentHashMap<String, Cooldown>();
+	private ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<String, Long>();
 	
 	public CreatureObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String Template) {
 		super(objectID, planet, Template, position, orientation);
@@ -1728,43 +1730,55 @@ public class CreatureObject extends TangibleObject implements IPersistent {
 		}
 	}
 	
-	public void addCooldown(String ability, long duration) {
-		if (cooldowns.containsKey(ability))
-			cooldowns.remove(ability);
+	public void addCooldown(String cooldownGroup, float cooldownTime) {
+		if (cooldowns.containsKey(cooldownGroup)) {
+			cooldowns.remove(cooldownGroup);
+		}
 		
-		Cooldown cd = new Cooldown(duration);
-		cd.setRemovalTask(Executors.newScheduledThreadPool(1).schedule(new Runnable() {
-
-			@Override
-			public void run() {
-				removeCooldown(ability);
+		long duration = System.currentTimeMillis() + ((long) (cooldownTime * 1000F)); 
+		
+		cooldowns.put(cooldownGroup, duration);
+	}
+	
+	public boolean hasCooldown(String cooldownGroup) {
+		if (cooldowns.containsKey(cooldownGroup)) {
+			if (System.currentTimeMillis() < cooldowns.get(cooldownGroup)) {
+				return true;
+			} else {
+				removeCooldown(cooldownGroup);
 			}
-			
-		}, duration, TimeUnit.MILLISECONDS));
-		cooldowns.put(ability, cd);
-	}
-	
-	public boolean hasCooldown(String ability) {
-		if (cooldowns.containsKey(ability))
-			return true;
-		else
-			return false;
-	}
-	
-	public boolean removeCooldown(String ability) {
-		if (cooldowns.containsKey(ability)) {
-			cooldowns.remove(ability);
-			return true;
-		} else {
-			return false;
 		}
+		
+		return false;
 	}
 	
-	public Cooldown getCooldown(String ability) {
-		if (cooldowns.containsKey(ability)) {
-			return cooldowns.get(ability);
-		} else {
-			return null;
+	public boolean removeCooldown(String cooldownGroup) {
+		if (cooldowns.containsKey(cooldownGroup)) {
+			cooldowns.remove(cooldownGroup);
+			return true;
 		}
+		
+		return false;
 	}
+	
+	public Cooldown getCooldown(String cooldownGroup) {
+		return new Cooldown(getRemainingCooldown(cooldownGroup));
+	}
+	
+	public long getRemainingCooldown(String cooldownGroup) {
+		if (cooldowns.containsKey(cooldownGroup)) {
+			if (System.currentTimeMillis() < cooldowns.get(cooldownGroup)) {
+				return (long) (cooldowns.get(cooldownGroup) - System.currentTimeMillis());
+			} else {
+				removeCooldown(cooldownGroup);
+			}
+		}
+		
+		return 0L;
+	}
+	
+	//public float getCooldown(String cooldownGroup) {
+		//return ((float) getCooldown(cooldownGroup) / (float) 1000);
+	//}
+	
 }
