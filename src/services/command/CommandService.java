@@ -118,7 +118,11 @@ public class CommandService implements INetworkDispatch  {
 					return false;
 				}
 				
-				if (target != null && actor.getPosition().getDistance(target.getPosition()) > command.getMaxRangeToTarget()) {
+				if (target.getContainer() == actor || target.getGrandparent() == actor) {
+					break;
+				}
+				
+				if (actor.getPosition().getDistance(target.getPosition()) > command.getMaxRangeToTarget()) {
 					return false;
 				}
 				
@@ -256,24 +260,44 @@ public class CommandService implements INetworkDispatch  {
 		}
 		
 		try {
-			DatatableVisitor visitor = ClientFileManager.loadFile("datatables/command/command_table.iff", DatatableVisitor.class);
+			String[] tableArray = new String[] {
+			"client_command_table", "command_table", "client_command_table_ground", "command_table_ground",
+			"client_command_table_space", "command_table_space" };
 			
-			for (int i = 0; i < visitor.getRowCount(); i++) {
-				if (visitor.getObject(i, 0) != null) {
-					String name = ((String) visitor.getObject(i, 0)).toLowerCase();
-					
-					if (CRC.StringtoCRC(name) == commandCRC) {
-						boolean hasCharacterAbility = (((String) visitor.getObject(i, 7)).length() > 0);
-						boolean isCombatCommand = (Boolean) visitor.getObject(i, 82);
+			for (int n = 0; n < tableArray.length; n++) {
+				DatatableVisitor visitor = ClientFileManager.loadFile("datatables/command/" + tableArray[n] + ".iff", DatatableVisitor.class);
+				
+				for (int i = 0; i < visitor.getRowCount(); i++) {
+					if (visitor.getObject(i, 0) != null) {
+						String name = ((String) visitor.getObject(i, 0)).toLowerCase();
 						
-						if (hasCharacterAbility || isCombatCommand) {
-							CombatCommand command = new CombatCommand(name.toLowerCase());
-							commandLookup.add(command);
-							return command;
-						} else {
-							BaseSWGCommand command = new BaseSWGCommand(name.toLowerCase());
-							commandLookup.add(command);
-							return command;
+						if (CRC.StringtoCRC(name) == commandCRC) {
+							int sub = 0;
+							
+							boolean hasCharacterAbility = (((String) visitor.getObject(i, 7-sub)).length() > 0);
+							
+							if (tableArray[n].startsWith("client_") || tableArray[n].startsWith("command_table_")) {
+								sub += 7;
+							}
+							
+							if (tableArray[n].equals("client_command_table_space")) {
+								sub += 5;
+							}
+							
+							boolean isCombatCommand = false;
+							
+							if(visitor.getObject(i, 82-sub) instanceof Boolean)
+								isCombatCommand = (Boolean) visitor.getObject(i, 82-sub);
+							
+							if (hasCharacterAbility || isCombatCommand) {
+								CombatCommand command = new CombatCommand(name.toLowerCase());
+								commandLookup.add(command);
+								return command;
+							} else {
+								BaseSWGCommand command = new BaseSWGCommand(name.toLowerCase());
+								commandLookup.add(command);
+								return command;
+							}
 						}
 					}
 				}
@@ -297,24 +321,45 @@ public class CommandService implements INetworkDispatch  {
 		}
 		
 		try {
-			DatatableVisitor visitor = ClientFileManager.loadFile("datatables/command/command_table.iff", DatatableVisitor.class);
+			String[] tableArray = new String[] {
+			"client_command_table", "command_table", "client_command_table_ground", "command_table_ground",
+			"client_command_table_space", "command_table_space" };
 			
-			for (int i = 0; i < visitor.getRowCount(); i++) {
-				if (visitor.getObject(i, 0) != null) {
-					String commandName = ((String) visitor.getObject(i, 0)).toLowerCase();
-					
-					if (commandName.equalsIgnoreCase(name)) {
-						boolean hasCharacterAbility = (((String) visitor.getObject(i, 7)).length() > 0);
-						boolean isCombatCommand = (Boolean) visitor.getObject(i, 82);
+			for (int n = 0; n < tableArray.length; n++) {
+				DatatableVisitor visitor = ClientFileManager.loadFile("datatables/command/" + tableArray[n] + ".iff", DatatableVisitor.class);
+				
+				for (int i = 0; i < visitor.getRowCount(); i++) {
+					if (visitor.getObject(i, 0) != null) {
+						String commandName = ((String) visitor.getObject(i, 0)).toLowerCase();
 						
-						if (hasCharacterAbility || isCombatCommand) {
-							CombatCommand command = new CombatCommand(commandName);
-							commandLookup.add(command);
-							return command;
-						} else {
-							BaseSWGCommand command = new BaseSWGCommand(commandName);
-							commandLookup.add(command);
-							return command;
+						if (commandName.equalsIgnoreCase(name)) {
+							int sub = 0;
+							
+							boolean hasCharacterAbility = (((String) visitor.getObject(i, 7-sub)).length() > 0);
+														
+							if (tableArray[n].startsWith("client_") || tableArray[n].startsWith("command_table_")) {
+								sub += 7;
+							}
+							
+							if (tableArray[n].equals("client_command_table_space")) {
+								sub += 5;
+							}
+							
+							boolean isCombatCommand = false;
+							
+							if(visitor.getObject(i, 82-sub) instanceof Boolean)
+								isCombatCommand = (Boolean) visitor.getObject(i, 82-sub);
+							
+							// "isCombatCommand" needs to be changed so that non-combat commands that are flagged to added to a combat queue are not considered combat commands
+							if (hasCharacterAbility || isCombatCommand) {
+								CombatCommand command = new CombatCommand(commandName);
+								commandLookup.add(command);
+								return command;
+							} else {
+								BaseSWGCommand command = new BaseSWGCommand(commandName);
+								commandLookup.add(command);
+								return command;
+							}
 						}
 					}
 				}
@@ -327,9 +372,7 @@ public class CommandService implements INetworkDispatch  {
 	}
 	
 	public void processCommand(CreatureObject actor, SWGObject target, BaseSWGCommand command, int actionCounter, String commandArgs) {
-		if (command.getCooldown() > (float) 1) {
-			actor.addCooldown(command.getCooldownGroup(), command.getCooldown());
-		}
+		actor.addCooldown(command.getCooldownGroup(), command.getCooldown());
 		
 		if (command instanceof CombatCommand) {
 			processCombatCommand(actor, target, (CombatCommand) command, actionCounter, commandArgs);
@@ -351,7 +394,15 @@ public class CommandService implements INetworkDispatch  {
 		//}
 		
 		if(FileUtilities.doesFileExist("scripts/commands/combat/" + command.getCommandName() + ".py"))
+		{
 			core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "setup", core, attacker, target, command);
+		}
+		// Temporary fix for certain non-combat commands being registered as combat commands
+		else if(FileUtilities.doesFileExist("scripts/commands/" + command.getCommandName() + ".py"))
+		{
+			core.scriptService.callScript("scripts/commands/", command.getCommandName(), "run", core, attacker, target, commandArgs);
+			return;
+		}
 		
 		boolean success = true;
 		
@@ -436,7 +487,7 @@ public class CommandService implements INetworkDispatch  {
 				return;
 			}
 			
-			if(command.getHitType() == 0 && command.getBuffNameSelf().length() > 0) {
+			if(command.getHitType() == 0 && command.getBuffNameSelf() != null && command.getBuffNameSelf().length() > 0) {
 				core.combatService.doSelfBuff(attacker, weapon, command, actionCounter);
 				return;
 			}

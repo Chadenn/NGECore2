@@ -775,8 +775,7 @@ public class SimulationService implements INetworkDispatch {
 		core.removeClient(session);
 		
 		object.setAttachment("disconnectTask", disconnectTask);
-		for(TangibleObject obj : new Vector<TangibleObject>(object.getDefendersList())) 
-			object.removeDefender(obj);	// temp fix for being stuck in combat
+		core.combatService.endCombat(object); // temp fix for ending combat on disconnect
 
 	}
 
@@ -909,6 +908,11 @@ public class SimulationService implements INetworkDispatch {
 		long startTime = System.nanoTime();
 		if(obj1.getPlanet() != obj2.getPlanet())
 			return false;
+		
+		// If obj1 is container of obj2 vice versa
+		if (obj1 == obj2.getContainer() || obj2 == obj1.getContainer() || obj1 == obj2.getGrandparent() || obj2 == obj1.getGrandparent()) {
+			return true;
+		}
 		
 		if(obj1.getGrandparent() != null || obj2.getGrandparent() != null) {
 			
