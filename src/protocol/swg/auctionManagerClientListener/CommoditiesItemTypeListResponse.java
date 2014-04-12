@@ -19,26 +19,34 @@
  * Using NGEngine to work with NGECore2 is making a combined work based on NGEngine. 
  * Therefore all terms and conditions of the GNU Lesser General Public License cover the combination.
  ******************************************************************************/
-package resources.objects.installation;
+package protocol.swg.auctionManagerClientListener;
 
-import com.sleepycat.persist.model.Entity;
-import com.sleepycat.persist.model.Persistent;
+import java.nio.ByteOrder;
 
-import engine.clients.Client;
-import engine.resources.scene.Planet;
-import engine.resources.scene.Point3D;
-import engine.resources.scene.Quaternion;
-import resources.objects.tangible.TangibleObject;
+import main.NGECore;
 
-@Entity(version=0)
-public class InstallationObject extends TangibleObject {
-	
-	public InstallationObject(long objectID, Planet planet, String template, Point3D position, Quaternion orientation){
-		super(objectID, planet, template, position, orientation);		
-	}	
-	
+import org.apache.mina.core.buffer.IoBuffer;
+
+import protocol.swg.SWGMessage;
+
+public class CommoditiesItemTypeListResponse extends SWGMessage {
+
 	@Override
-	public void sendBaselines(Client destination) {
+	public void deserialize(IoBuffer data) {
+		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public IoBuffer serialize() {
+		// TODO: research how categories work
+		String galaxy = NGECore.getInstance().getGalaxyName();
+		IoBuffer result = IoBuffer.allocate(14 + galaxy.length()).order(ByteOrder.LITTLE_ENDIAN);
+		result.putShort((short) 2);
+		result.putInt(0xD4E937FC);
+		result.put(getAsciiString(galaxy + ".0"));
+		result.putInt(0);
+		return result.flip();
+	}
+
 }

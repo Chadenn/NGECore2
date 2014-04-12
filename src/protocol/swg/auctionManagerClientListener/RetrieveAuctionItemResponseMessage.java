@@ -19,26 +19,44 @@
  * Using NGEngine to work with NGECore2 is making a combined work based on NGEngine. 
  * Therefore all terms and conditions of the GNU Lesser General Public License cover the combination.
  ******************************************************************************/
-package resources.objects.installation;
+package protocol.swg.auctionManagerClientListener;
 
-import com.sleepycat.persist.model.Entity;
-import com.sleepycat.persist.model.Persistent;
+import java.nio.ByteOrder;
 
-import engine.clients.Client;
-import engine.resources.scene.Planet;
-import engine.resources.scene.Point3D;
-import engine.resources.scene.Quaternion;
-import resources.objects.tangible.TangibleObject;
+import org.apache.mina.core.buffer.IoBuffer;
 
-@Entity(version=0)
-public class InstallationObject extends TangibleObject {
+import protocol.swg.SWGMessage;
+
+public class RetrieveAuctionItemResponseMessage extends SWGMessage {
+
+	private long objectId;
+	private int status;
 	
-	public InstallationObject(long objectID, Planet planet, String template, Point3D position, Quaternion orientation){
-		super(objectID, planet, template, position, orientation);		
-	}	
+	public static final int SUCCESS = 0;
+	public static final int NOTALLOWED = 1;
+	public static final int FULLINVENTORY = 12;
+	public static final int TOOFAR = 0x100;
+	public static final int DONTRETRIEVE = 0x200;
+
+	public RetrieveAuctionItemResponseMessage(long objectId, int status) {
+		this.objectId = objectId;
+		this.status = status;
+	}
 	
 	@Override
-	public void sendBaselines(Client destination) {
-		
+	public void deserialize(IoBuffer data) {
+		// TODO Auto-generated method stub
+
 	}
+
+	@Override
+	public IoBuffer serialize() {
+		IoBuffer result = IoBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN);
+		result.putShort((short) 3);
+		result.putInt(0x9499EF8C);
+		result.putLong(objectId);
+		result.putInt(status);
+		return result.flip();
+	}
+
 }

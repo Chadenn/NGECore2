@@ -19,26 +19,37 @@
  * Using NGEngine to work with NGECore2 is making a combined work based on NGEngine. 
  * Therefore all terms and conditions of the GNU Lesser General Public License cover the combination.
  ******************************************************************************/
-package resources.objects.installation;
+package protocol.swg.auctionManagerClientListener;
 
-import com.sleepycat.persist.model.Entity;
-import com.sleepycat.persist.model.Persistent;
+import java.nio.ByteOrder;
 
-import engine.clients.Client;
-import engine.resources.scene.Planet;
-import engine.resources.scene.Point3D;
-import engine.resources.scene.Quaternion;
-import resources.objects.tangible.TangibleObject;
+import org.apache.mina.core.buffer.IoBuffer;
 
-@Entity(version=0)
-public class InstallationObject extends TangibleObject {
+import protocol.swg.SWGMessage;
+
+public class AcceptAuctionResponseMessage extends SWGMessage {
 	
-	public InstallationObject(long objectID, Planet planet, String template, Point3D position, Quaternion orientation){
-		super(objectID, planet, template, position, orientation);		
-	}	
-	
+	private long itemId;
+	private int error;
+
+	public AcceptAuctionResponseMessage(long itemId, int error) {
+		this.itemId = itemId;
+		this.error = error;
+	}
+
 	@Override
-	public void sendBaselines(Client destination) {
+	public void deserialize(IoBuffer data) {
 		
 	}
+
+	@Override
+	public IoBuffer serialize() {
+		IoBuffer result = IoBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN);
+		result.putShort((short) 3);
+		result.putInt(0xC58A446E);
+		result.putLong(itemId);
+		result.putInt(error);
+		return result.flip();
+	}
+
 }
