@@ -332,6 +332,10 @@ public class SimulationService implements INetworkDispatch {
 				}
 				
 				CreatureObject object = (CreatureObject) client.getParent();
+				
+				if (object.mounted)
+					object=object.getMountedVehicle();
+				
 				Point3D newPos;
 				Point3D oldPos;
 				synchronized(object.getMutex()) {
@@ -759,6 +763,15 @@ public class SimulationService implements INetworkDispatch {
 				core.combatService.handleEndDuel(object, opponent, true);
 			}
 		}
+		System.out.print(object.getAttachment("activeVehicleID"));
+		
+		if(object.getAttachment("activeVehicleID") != null) 
+		{
+			if(object.isMounted()) object.getMountedVehicle().unmount(object);
+			long vehicleID = ((java.math.BigInteger) object.getAttachment("activeVehicleID")).longValue();
+			core.objectService.destroyObject(vehicleID);
+			object.setAttachment("activeVehicleID", null);	
+		}
 		
 		/*
 		object.createTransaction(core.getCreatureODB().getEnvironment());
@@ -813,7 +826,7 @@ public class SimulationService implements INetworkDispatch {
 		//core.chatService.joinChatRoom(object.getCustomName().toLowerCase(), "SWG." + core.getGalaxyName() + "." + object.getPlanet().getName());
 
 		if (!object.hasSkill(ghost.getProfessionWheelPosition())) {
-			object.showFlyText("cbt_spam", "skill_up", (float) 2.5, new RGB(154, 205, 50), 0);
+			object.showFlyText(OutOfBand.ProsePackage("@cbt_spam:skill_up"), 2.5f, new RGB(154, 205, 50), 0, true);
 			object.playEffectObject("clienteffect/skill_granted.cef", "");
 			object.playMusic("sound/music_acq_bountyhunter.snd");
 			core.skillService.addSkill(object, ghost.getProfessionWheelPosition());
@@ -824,6 +837,7 @@ public class SimulationService implements INetworkDispatch {
 		
 		if(object.getPosture() == Posture.Dead)
 			core.playerService.sendCloningWindow(object, false);
+		
 	}
 		
 	public void transferToPlanet(SWGObject object, Planet planet, Point3D newPos, Quaternion newOrientation, SWGObject newParent) {

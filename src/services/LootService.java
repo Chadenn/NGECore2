@@ -27,10 +27,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributeView;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -410,7 +407,7 @@ public class LootService implements INetworkDispatch {
 		if (lootedObject instanceof CreatureObject){
 			CreatureObject lootedCreature = (CreatureObject) lootedObject;
 			int creatureCL = lootedCreature.getLevel();
-			creatureCL = 90;
+			//creatureCL = 90;
 			int maximalCredits = (int)Math.floor(4*creatureCL + creatureCL*creatureCL*4/100); 
 			int minimalCredits = (int)Math.floor(creatureCL*2 + maximalCredits/2); 
 			int spanOfCredits  = maximalCredits - minimalCredits;			
