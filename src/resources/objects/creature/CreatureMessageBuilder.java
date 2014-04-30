@@ -22,21 +22,20 @@
 package resources.objects.creature;
 
 import java.nio.ByteOrder;
-
-
+import java.util.Map.Entry;
 
 import org.apache.mina.core.buffer.IoBuffer;
 
 import com.sleepycat.persist.model.Persistent;
 
 import engine.resources.common.CRC;
-import resources.objects.Buff;
+import resources.buffs.Buff;
 import resources.objects.ObjectMessageBuilder;
-import resources.objects.SkillMod;
 import engine.resources.objects.SWGObject;
 import resources.objects.player.PlayerObject;
 import resources.objects.tangible.TangibleObject;
 import resources.objects.weapon.WeaponObject;
+import resources.skills.SkillMod;
 
 @Persistent
 public class CreatureMessageBuilder extends ObjectMessageBuilder {
@@ -96,6 +95,8 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		}
 
 		buffer.putShort((short) 19);	// Object Count
+		
+		// BaseObject
 		buffer.putFloat(1);
 		buffer.put(getAsciiString(creature.getStfFilename()));
 		buffer.putInt(0);	
@@ -104,6 +105,8 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		buffer.put(getUnicodeString(creature.getCustomName()));
 	//	buffer.putInt(0x000F4240); // volume
 		buffer.putInt(1);
+		
+		// TangibleObject
 		buffer.putInt(CRC.StringtoCRC(creature.getFaction()));
 		
 		buffer.putInt(creature.getFactionStatus());
@@ -126,6 +129,8 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		buffer.putInt(0x3A98);
 		
 		buffer.put((byte) 1);
+		
+		// CreatureObject
 		buffer.put((byte) creature.getPosture());
 		buffer.put((byte) 0);
 
@@ -160,10 +165,10 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		
 		buffer.putInt(creature.getSkillMods().size());
 		buffer.putInt(creature.getSkillMods().getUpdateCounter());
-		for (SkillMod skillMod : creature.getSkillMods().values()) {
+		for (Entry<String, SkillMod> skillMod : creature.getSkillMods().entrySet()) {
 			buffer.put((byte) 0);
-			buffer.put(getAsciiString(skillMod.getName()));
-			buffer.put(skillMod.getBytes());
+			buffer.put(getAsciiString(skillMod.getKey()));
+			buffer.put(skillMod.getValue().getBytes());
 		}
 		
 		buffer.putFloat(creature.getSpeedMultiplierBase());
@@ -216,20 +221,21 @@ public class CreatureMessageBuilder extends ObjectMessageBuilder {
 		IoBuffer buffer = bufferPool.allocate(100, false).order(ByteOrder.LITTLE_ENDIAN);
 		buffer.setAutoExpand(true);
 		buffer.putShort((short) 0x23);
+		
+		// BaseObject
 		buffer.putInt(0x43); // serverId
 		
 		buffer.putShort((short) 0); // detaiLStfFilename
 		buffer.putInt(0); // detailStfSpacer
 		buffer.putShort((short) 0); // detailStfName
 		
-		// TANO 6 lists TODO: research
-		
+		// TangibleObject
 		buffer.put(creature.getCombatFlag());
 		
-		buffer.putLong(0); //List<Long> possibly defenders list
+		buffer.putLong(0); //Set<Long> cloakViewers (set of objectIds of who can see a cloaked spy)
 		buffer.putInt(0); //Int
 		buffer.putLong(0); //List<Long>
-		buffer.putLong(0);	//List<Int>
+		buffer.putLong(0); //List<Int>
 		buffer.putLong(0); //List<Unknown>
 		
 		buffer.putShort(creature.getLevel());

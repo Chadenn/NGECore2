@@ -61,7 +61,6 @@ import services.housing.HousingService;
 import services.InstanceService;
 import services.LoginService;
 import services.LootService;
-import services.MissionService;
 import services.PlayerService;
 import services.ScriptService;
 import services.SimulationService;
@@ -83,8 +82,11 @@ import services.gcw.GCWService;
 import services.guild.GuildService;
 import services.LoginService;
 import services.map.MapService;
+import services.mission.MissionService;
 import services.object.ObjectService;
 import services.object.UpdateService;
+import services.pet.MountService;
+import services.playercities.PlayerCityService;
 import services.resources.HarvesterService;
 import services.resources.ResourceService;
 import services.retro.RetroService;
@@ -171,7 +173,7 @@ public class NGECore {
 	public WeatherService weatherService;
 	public SpawnService spawnService;
 	public AIService aiService;
-	//public MissionService missionService;
+	public MissionService missionService;
 	public InstanceService instanceService;
 	public DevService devService;
 	public SurveyService surveyService;
@@ -181,6 +183,8 @@ public class NGECore {
 	public HousingService housingService;
 	public LootService lootService;
 	public HarvesterService harvesterService;
+	public MountService mountService;
+	public PlayerCityService playerCityService;
 
 	
 	// Login Server
@@ -209,6 +213,7 @@ public class NGECore {
 	private ObjectDatabase resourcesODB;
 	private ObjectDatabase resourceRootsODB;
 	private ObjectDatabase resourceHistoryODB;
+	private ObjectDatabase bountiesODB;
 	
 	public static boolean PACKET_DEBUG = false;
 
@@ -270,6 +275,7 @@ public class NGECore {
 		resourceRootsODB = new ObjectDatabase("resourceroots", true, false, true);
 		resourceHistoryODB = new ObjectDatabase("resourcehistory", true, false, true);
 		auctionODB = new ObjectDatabase("auction", true, false, true);
+		bountiesODB = new ObjectDatabase("bounties", true, false, true);
 		
 		// Services
 		loginService = new LoginService(this);
@@ -302,6 +308,8 @@ public class NGECore {
 		housingService = new HousingService(this);
 		lootService = new LootService(this);
 		harvesterService = new HarvesterService(this);
+		mountService = new MountService(this);
+		playerCityService = new PlayerCityService(this);
 		
 		if (config.keyExists("JYTHONCONSOLE.PORT")) {
 			int jythonPort = config.getInt("JYTHONCONSOLE.PORT");
@@ -316,7 +324,7 @@ public class NGECore {
 		}
 		spawnService = new SpawnService(this);
 		aiService = new AIService(this);
-		//missionService = new MissionService(this);
+		missionService = new MissionService(this);
 		
 		if (optionsConfigLoaded && options.getInt("LOAD.RESOURCE.SYSTEM") == 1) {
 			surveyService = new SurveyService(this);
@@ -353,8 +361,12 @@ public class NGECore {
 		zoneDispatch.addService(playerService);
 		zoneDispatch.addService(buffService);
 		zoneDispatch.addService(entertainmentService);
-		//zoneDispatch.addService(missionService);
+		zoneDispatch.addService(missionService);
 		zoneDispatch.addService(bazaarService);
+		zoneDispatch.addService(lootService);
+		zoneDispatch.addService(mountService);
+		zoneDispatch.addService(housingService);
+		zoneDispatch.addService(playerCityService);
 		
 		if (optionsConfigLoaded && options.getInt("LOAD.RESOURCE.SYSTEM") == 1) {
 			zoneDispatch.addService(surveyService);
@@ -380,11 +392,11 @@ public class NGECore {
 		terrainService.addPlanet(12, "kashyyyk_main", "terrain/kashyyyk_main.trn", true);
 		//Dungeon Terrains
 		// TODO: Fix BufferUnderFlow Errors on loaded of dungeon instances.
-		/*terrainService.addPlanet(13, "kashyyyk_dead_forest", "terrain/kashyyyk_dead_forest.trn", true);
+		terrainService.addPlanet(13, "kashyyyk_dead_forest", "terrain/kashyyyk_dead_forest.trn", true);
 		terrainService.addPlanet(14, "kashyyyk_hunting", "terrain/kashyyyk_hunting.trn", true);
 		terrainService.addPlanet(15, "kashyyyk_north_dungeons", "terrain/kashyyyk_north_dungeons.trn", true);
 		terrainService.addPlanet(16, "kashyyyk_rryatt_trail", "terrain/kashyyyk_rryatt_trail.trn", true);
-		terrainService.addPlanet(17, "kashyyyk_south_dungeons", "terrain/kashyyyk_south_dungeons.trn", true);*/
+		terrainService.addPlanet(17, "kashyyyk_south_dungeons", "terrain/kashyyyk_south_dungeons.trn", true);
 		terrainService.addPlanet(18, "adventure1", "terrain/adventure1.trn", true);
 		terrainService.addPlanet(19, "adventure2", "terrain/adventure2.trn", true);
 		terrainService.addPlanet(20, "dungeon1", "terrain/dungeon1.trn", true);
@@ -420,6 +432,9 @@ public class NGECore {
 		//terrainService.addPlanet(46, "kaas", "terrain/kaas.trn", true);
 
 		//end terrainList
+		
+		chatService.loadChatRooms();
+		
 		spawnService = new SpawnService(this);
 		terrainService.loadClientPois();
 		// Travel Points
@@ -429,8 +444,8 @@ public class NGECore {
 		objectService.loadBuildings();
 		
 		if (optionsConfigLoaded && options.getInt("LOAD.RESOURCE.SYSTEM") > 0) {
-			objectService.loadResourceRoots();
-			objectService.loadResources();
+			resourceService.loadResourceRoots();
+			resourceService.loadResources();
 		}
 		
 		terrainService.loadSnapShotObjects();
@@ -461,7 +476,6 @@ public class NGECore {
 		instanceService = new InstanceService(this);
 		zoneDispatch.addService(instanceService);
 		
-		//travelService.startShuttleSchedule();
 		
 		weatherService = new WeatherService(this);
 		weatherService.loadPlanetSettings();
@@ -471,7 +485,6 @@ public class NGECore {
 		spawnService.loadLairGroups();
 		spawnService.loadSpawnAreas();
 		
-		housingService.loadHousingTemplates();
 		equipmentService.loadBonusSets();
 		
 		retroService.run();
@@ -615,6 +628,10 @@ public class NGECore {
 		return chatRoomODB;
 	}
 	
+	public ObjectDatabase getBountiesODB() {
+		return bountiesODB;
+	}
+
 	public ObjectDatabase getResourcesODB() {
 		return resourcesODB;
 	}
@@ -627,6 +644,9 @@ public class NGECore {
 		return resourceHistoryODB;
 	}
 	
+	public ObjectDatabase getAuctionODB() {
+		return auctionODB;
+	}
 	
 	public int getActiveClients() {
 		int connections = 0;

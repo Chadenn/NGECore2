@@ -46,6 +46,7 @@ import resources.common.FileUtilities;
 import resources.common.ObjControllerOpcodes;
 import resources.common.Opcodes;
 import resources.common.RadialOptions;
+import resources.loot.LootRollSession;
 import resources.objects.creature.CreatureObject;
 import resources.objects.harvester.HarvesterObject;
 import services.sui.SUIWindow.SUICallback;
@@ -99,17 +100,33 @@ public class SUIService implements INetworkDispatch {
 					if (! admins.contains(owner.getCustomName()) && hoppers.contains(owner.getCustomName())){
 						 // authorized for hopper
 						// change radialOptions to hopper access
-						core.scriptService.callScript("scripts/radial/", "harvesterHopper", "createRadial", core, owner, target, request.getRadialOptions());
+						core.scriptService.callScript("scripts/radial/", "structure/harvesterHopper", "createRadial", core, owner, target, request.getRadialOptions());
 						sendRadial(owner, target, request.getRadialOptions(), request.getRadialCount());
 						return;
 					}
 				}
 				
+				if (target instanceof CreatureObject){
+					CreatureObject creature = (CreatureObject) target;
+					if (!creature.isPlayer() && creature.isLootLock()){
+						LootRollSession lootRollSession = (LootRollSession )creature.getAttachment("LootSession");
+						if (lootRollSession!=null) {
+							if (lootRollSession.getRequester()!=owner){
+	
+								// ToDo: RADIALS MUST BE DISABLED HERE FOR THE CORPSE, BUT HOW?
+								core.scriptService.callScript("scripts/radial/", "npc/noloot", "createRadial", core, owner, target, request.getRadialOptions());
+								sendRadial(owner, target, request.getRadialOptions(), request.getRadialCount());
+								return;
+							}
+						}
+					}					
+				}
+				
 				if(target.getGrandparent() != null && target.getGrandparent().getAttachment("structureAdmins") != null)
 				{
-					if(core.housingService.getPermissions(owner, target.getContainer()) && !getRadialFilename(target).equals("structure_management_terminal"))
+					if(core.housingService.getPermissions(owner, target.getContainer()) && !getRadialFilename(target).equals("structure/structure_management_terminal"))
 					{
-						core.scriptService.callScript("scripts/radial/", "moveable", "createRadial", core, owner, target, request.getRadialOptions());
+						core.scriptService.callScript("scripts/radial/", "structure/moveable", "createRadial", core, owner, target, request.getRadialOptions());
 						sendRadial(owner, target, request.getRadialOptions(), request.getRadialCount());
 						return;
 					}

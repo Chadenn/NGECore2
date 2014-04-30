@@ -61,15 +61,15 @@ public class BuildingObject extends TangibleObject implements IPersistent {
 	private short maximumStorageCapacity=0;
 	private Vector<Long> entryList = new Vector<Long>(); // Preferably the OIDs should be stored, because of name changes
 	private Vector<Long> banList = new Vector<Long>();
-
-	public BuildingObject() {
-		super();
+	
+	public BuildingObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String Template) {
+		super(objectID, planet, Template, position, orientation);
 		messageBuilder = new BuildingMessageBuilder(this);
 		this.setConditionDamage(100);
 	}
-
-	public BuildingObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String Template) {
-		super(objectID, planet, Template, position, orientation);
+	
+	public BuildingObject() {
+		super();
 		messageBuilder = new BuildingMessageBuilder(this);
 		this.setConditionDamage(100);
 	}
@@ -87,6 +87,18 @@ public class BuildingObject extends TangibleObject implements IPersistent {
 		
 		return ref.get();
 		
+	}
+	
+	public int getCellNumberByObjectId(long objectId) {
+		Vector<CellObject> cells = getCells();
+		
+		for (CellObject cell : cells) {
+			if (cell.getObjectID() == objectId) {
+				return cell.getCellNumber();
+			}
+		}
+		
+		return 0;
 	}
 	
 	public float getMaintenanceAmount() {
@@ -151,7 +163,9 @@ public class BuildingObject extends TangibleObject implements IPersistent {
 	public Vector<TangibleObject> getItemsList() {
 		Vector<TangibleObject> items = new Vector<TangibleObject>();
 		getCells().forEach(c -> c.viewChildren(c, true, false, (item) -> {
-			if(!(item instanceof CreatureObject) && item.getTemplate() != "object/tangible/terminal/shared_terminal_player_structure.iff")
+			if(!(item instanceof CreatureObject) && item.getTemplate() != "object/tangible/terminal/shared_terminal_player_structure.iff"
+			   && item.getTemplate() != "object/tangible/terminal/shared_terminal_city.iff"
+			   && item.getTemplate() != "object/tangible/terminal/shared_terminal_city_vote.iff")
 				items.add((TangibleObject) item);
 		}));
 		return items;

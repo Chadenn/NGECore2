@@ -52,6 +52,7 @@ public class AuctionQueryHeadersMessage extends SWGMessage {
 		setScreen(data.getInt());
 		setCategory(data.getInt());
 		setItemTypeCRC(data.getInt());
+		data.get(); // unk
 		int size = data.getInt();
 		try {
 			setSearchString(new String(ByteBuffer.allocate(size * 2).put(data.array(), data.position(), size * 2).array(), "UTF-16LE"));
@@ -59,6 +60,7 @@ public class AuctionQueryHeadersMessage extends SWGMessage {
 			e.printStackTrace();
 		}
 		data.position(data.position() + size * 2);
+		
 		setUnkInt(data.getInt());
 		setMinPrice(data.getInt());
 		setMaxPrice(data.getInt());

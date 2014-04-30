@@ -295,7 +295,16 @@ public class CommandService implements INetworkDispatch  {
 			}
 		}
 		
-		processCommand(actor, target, command, actionCounter, commandArgs);
+		if(command instanceof CombatCommand) {
+			try {
+				processCommand(actor, target, (BaseSWGCommand) command.clone(), actionCounter, commandArgs);
+			} catch (CloneNotSupportedException e) {
+				e.printStackTrace();
+			}
+		}
+		else
+			processCommand(actor, target, command, actionCounter, commandArgs);
+			
 		
 		return true;
 	}
@@ -423,8 +432,7 @@ public class CommandService implements INetworkDispatch  {
 	}
 	
 	public void processCombatCommand(CreatureObject attacker, SWGObject target, CombatCommand command, int actionCounter, String commandArgs) {
-		if(FileUtilities.doesFileExist("scripts/commands/combat/" + command.getCommandName() + ".py"))
-		{
+		if (FileUtilities.doesFileExist("scripts/commands/combat/" + command.getCommandName() + ".py")) {
 			core.scriptService.callScript("scripts/commands/combat/", command.getCommandName(), "setup", core, attacker, target, command);
 		}
 		
